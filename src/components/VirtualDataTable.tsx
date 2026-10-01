@@ -1,28 +1,34 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
+import { useVirtualizer } from "@tanstack/react-virtual";
 import {
   flexRender,
   getCoreRowModel,
   getFilteredRowModel,
-  getPaginationRowModel,
   getSortedRowModel,
   useReactTable,
   type ColumnDef,
   type SortingState,
   type VisibilityState,
 } from "@tanstack/react-table";
-import { ArrowDown, ArrowUp, ArrowUpDown, ChevronDown, ChevronLeft, ChevronRight, Search } from "lucide-react";
+import { ArrowDown, ArrowUp, ArrowUpDown, ChevronDown, Search, Zap } from "lucide-react";
 import { EmptyState } from "./ui";
 
-interface DataTableProps<T> {
+interface VirtualDataTableProps<T> {
   data: T[];
   columns: ColumnDef<T>[];
   searchPlaceholder?: string;
-  searchColumnId?: string;
+  initialGlobalFilter?: string;
 }
 
-export function DataTable<T>({ data, columns, searchPlaceholder = "Search…", searchColumnId }: DataTableProps<T>) {
+/**
+ * Data table built for very large datasets: TanStack Table handles
+ * sorting / filtering / column visibility, while @tanstack/react-virtual
+ * renders only the rows in the viewport (dynamic row measurement, so
+ * multi-line cells stay pixel-aligned with the sticky header).
+ */
+export function VirtualDataTable<T>({ data, columns, searchPlaceholder = "Search…", initialGlobalFilter = "" }: VirtualDataTableProps<T>) {
   const [sorting, setSorting] = useState<SortingState>([]);
-  const [globalFilter, setGlobalFilter] = useState("");
+  const [globalFilter, setGlobalFilter] = useState(initialGlobalFilter);
   const [columnVisibility, setColumnVisibility] = useState<VisibilityState>({});
   const [showColumns, setShowColumns] = useState(false);
 
@@ -36,19 +42,25 @@ export function DataTable<T>({ data, columns, searchPlaceholder = "Search…", s
     getCoreRowModel: getCoreRowModel(),
     getSortedRowModel: getSortedRowModel(),
     getFilteredRowModel: getFilteredRowModel(),
-    getPaginationRowModel: getPaginationRowModel(),
-    globalFilterFn: (row, _columnId, filterValue) => {
-      if (!searchColumnId) {
-        return Object.values(row.original as Record<string, unknown>).some((v) =>
-          String(v ?? "").toLowerCase().includes(String(filterValue).toLowerCase()),
-        );
-      }
-      const v = row.getValue(searchColumnId);
-      return String(v ?? "").toLowerCase().includes(String(filterValue).toLowerCase());
-    },
-    initialState: { pagination: { pageSize: 10 } },
+    globalFilterFn: (row, _columnId, filterValue) =>
+      Object.values(row.original as Record<string, unknown>).some((v) =>
+        String(v ?? "").toLowerCase().includes(String(filterValue).toLowerCase()),
+      ),
   });
 
+  const rows = table.getRowModel().rows;
+  const parentRef = useRef<HTMLDivElement>(null);
+  const virtualizer = useVirtualizer({
+    count: rows.length,
+    getScrollElement: () => parentRef.current,
+    estimateSize: () => 64,
+    overscan: 12,
+  });
+
+  const items = virtualizer.getVirtualItems();
+  const padTop = items.length > 0 ? items[0].start : 0;
+  const padBottom = items.length > 0 ? virtualizer.getTotalSize() - (items[items.length - 1].end ?? 0) : 0;
+  const colCount = table.getVisibleLeafColumns().length;
   const hideable = table.getAllLeafColumns().filter((c) => c.getCanHide());
 
   return (
@@ -87,17 +99,18 @@ export function DataTable<T>({ data, columns, searchPlaceholder = "Search…", s
             </div>
           )}
         </div>
-        <p className="ml-auto text-xs text-slate-500 dark:text-slate-400">
-          {table.getFilteredRowModel().rows.length} of {data.length} rows
+        <p className="ml-auto flex items-center gap-1.5 text-xs text-slate-500 dark:text-slate-400">
+          <Zap size={12} className="text-indigo-500" />
+          {rows.length.toLocaleString()} of {data.length.toLocaleString()} rows · virtualized
         </p>
       </div>
 
-      {/* table */}
-      <div className="overflow-x-auto border-t border-slate-100 dark:border-slate-800">
-        <table className="w-full min-w-[720px] text-left text-sm">
-          <thead>
+      {/* virtualized table */}
+      <div ref={parentRef} className="h-[560px] overflow-auto border-t border-slate-100 dark:border-slate-800">
+        <table className="w-full min-w-[900px] text-left text-sm">
+          <thead className="sticky top-0 z-10">
             {table.getHeaderGroups().map((hg) => (
-              <tr key={hg.id} className="bg-slate-50/70 dark:bg-slate-900/60">
+              <tr key={hg.id} className="bg-slate-50/95 backdrop-blur dark:bg-slate-900/95">
                 {hg.headers.map((header) => (
                   <th key={header.id} className="whitespace-nowrap px-4 py-3 text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
                     {header.isPlaceholder ? null : header.column.getCanSort() ? (
@@ -123,57 +136,51 @@ export function DataTable<T>({ data, columns, searchPlaceholder = "Search…", s
             ))}
           </thead>
           <tbody>
-            {table.getRowModel().rows.map((row) => (
-              <tr key={row.id} className="border-t border-slate-100 transition hover:bg-indigo-50/40 dark:border-slate-800 dark:hover:bg-indigo-950/30">
-                {row.getVisibleCells().map((cell) => (
-                  <td key={cell.id} className="whitespace-nowrap px-4 py-3 text-slate-700 dark:text-slate-300">
-                    {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                  </td>
-                ))}
+            {padTop > 0 && (
+              <tr>
+                <td style={{ height: padTop, padding: 0, border: 0 }} colSpan={colCount} />
               </tr>
-            ))}
+            )}
+            {items.map((vi) => {
+              const row = rows[vi.index];
+              return (
+                <tr
+                  key={row.id}
+                  data-index={vi.index}
+                  ref={virtualizer.measureElement}
+                  className="border-t border-slate-100 transition hover:bg-indigo-50/40 dark:border-slate-800 dark:hover:bg-indigo-950/30"
+                >
+                  {row.getVisibleCells().map((cell) => (
+                    <td key={cell.id} className="whitespace-nowrap px-4 py-3 text-slate-700 dark:text-slate-300">
+                      {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                    </td>
+                  ))}
+                </tr>
+              );
+            })}
+            {padBottom > 0 && (
+              <tr>
+                <td style={{ height: padBottom, padding: 0, border: 0 }} colSpan={colCount} />
+              </tr>
+            )}
+            {rows.length === 0 && (
+              <tr>
+                <td colSpan={colCount}>
+                  <EmptyState title="No results found" hint="Try adjusting your search or filters." />
+                </td>
+              </tr>
+            )}
           </tbody>
         </table>
-        {table.getRowModel().rows.length === 0 && (
-          <EmptyState title="No results found" hint="Try adjusting your search or filters." />
-        )}
       </div>
 
-      {/* pagination */}
-      <div className="flex flex-wrap items-center justify-between gap-3 border-t border-slate-100 px-5 py-3.5 dark:border-slate-800">
-        <div className="flex items-center gap-2 text-xs text-slate-500 dark:text-slate-400">
-          <span>Rows per page</span>
-          <select
-            value={table.getState().pagination.pageSize}
-            onChange={(e) => table.setPageSize(Number(e.target.value))}
-            className="rounded-md border border-slate-200 bg-white px-2 py-1 text-xs outline-none focus:border-indigo-400 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300"
-          >
-            {[5, 10, 20, 50].map((n) => (
-              <option key={n} value={n}>{n}</option>
-            ))}
-          </select>
-        </div>
+      {/* footer */}
+      <div className="flex items-center justify-between border-t border-slate-100 px-5 py-3.5 dark:border-slate-800">
         <p className="text-xs text-slate-500 dark:text-slate-400">
-          Page {table.getState().pagination.pageIndex + 1} of {table.getPageCount() || 1}
+          Rendering <span className="font-semibold text-slate-700 dark:text-slate-200">{items.length}</span> of{" "}
+          <span className="font-semibold text-slate-700 dark:text-slate-200">{rows.length.toLocaleString()}</span> rows in the viewport
         </p>
-        <div className="flex items-center gap-1">
-          <button
-            onClick={() => table.previousPage()}
-            disabled={!table.getCanPreviousPage()}
-            className="rounded-md border border-slate-200 p-1.5 text-slate-600 hover:bg-slate-50 disabled:opacity-40 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-800"
-            aria-label="Previous page"
-          >
-            <ChevronLeft size={16} />
-          </button>
-          <button
-            onClick={() => table.nextPage()}
-            disabled={!table.getCanNextPage()}
-            className="rounded-md border border-slate-200 p-1.5 text-slate-600 hover:bg-slate-50 disabled:opacity-40 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-800"
-            aria-label="Next page"
-          >
-            <ChevronRight size={16} />
-          </button>
-        </div>
+        <p className="text-xs text-slate-400 dark:text-slate-500">scroll to load more</p>
       </div>
     </div>
   );

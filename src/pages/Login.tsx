@@ -1,6 +1,7 @@
 import { useNavigate } from "react-router-dom";
 import { Gauge, ShieldCheck, Briefcase, Eye } from "lucide-react";
 import { ROLE_LABELS, useAuth, type Role } from "../auth/AuthContext";
+import { logAudit } from "../live/audit";
 
 const OPTIONS: Array<{ role: Role; icon: typeof ShieldCheck; blurb: string }> = [
   { role: "admin", icon: ShieldCheck, blurb: "Full access — manage orders, team and settings." },
@@ -14,6 +15,7 @@ export function Login() {
 
   const signIn = (role: Role) => {
     login(role);
+    logAudit(ROLE_LABELS[role], "Signed in", `Demo session started as ${ROLE_LABELS[role]}`);
     navigate("/", { replace: true });
   };
 

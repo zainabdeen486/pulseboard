@@ -138,3 +138,25 @@ export const MEMBER_STATUS_STYLES: Record<TeamMember["status"], string> = {
 export function formatMoney(n: number): string {
   return n.toLocaleString("en-US", { style: "currency", currency: "USD", maximumFractionDigits: 0 });
 }
+
+// --- large dataset for the virtualized orders view (50,000 rows) -------------
+// Separate seed so the original 128 demo orders stay byte-identical.
+const brand = mulberry32(7);
+const bpick = <T>(arr: T[]): T => arr[Math.floor(brand() * arr.length)];
+
+export const bigOrders: Order[] = Array.from({ length: 50000 }, (_, i) => {
+  const first = bpick(FIRST);
+  const last = bpick(LAST);
+  const [product, category] = bpick(PRODUCTS);
+  return {
+    id: `ORD-${(100001 + i).toString()}`,
+    customer: `${first} ${last}`,
+    email: `${first.toLowerCase()}.${last.toLowerCase()}@example.com`,
+    product,
+    category,
+    region: bpick(REGIONS),
+    amount: Math.round((49 + brand() * 2400) * 100) / 100,
+    status: bpick(STATUSES),
+    date: isoDaysAgo(Math.floor(brand() * 365)),
+  };
+});

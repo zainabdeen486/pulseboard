@@ -3,16 +3,16 @@ import { TrendingDown, TrendingUp } from "lucide-react";
 
 export function Card({ children, className = "" }: { children: ReactNode; className?: string }) {
   return (
-    <div className={`rounded-xl border border-slate-200 bg-white shadow-sm ${className}`}>{children}</div>
+    <div className={`rounded-xl border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900 ${className}`}>{children}</div>
   );
 }
 
 export function CardHeader({ title, subtitle, action }: { title: string; subtitle?: string; action?: ReactNode }) {
   return (
-    <div className="flex items-start justify-between gap-4 border-b border-slate-100 px-5 py-4">
+    <div className="flex items-start justify-between gap-4 border-b border-slate-100 px-5 py-4 dark:border-slate-800">
       <div>
-        <h3 className="text-sm font-semibold text-slate-900">{title}</h3>
-        {subtitle && <p className="mt-0.5 text-xs text-slate-500">{subtitle}</p>}
+        <h3 className="text-sm font-semibold text-slate-900 dark:text-slate-100">{title}</h3>
+        {subtitle && <p className="mt-0.5 text-xs text-slate-500 dark:text-slate-400">{subtitle}</p>}
       </div>
       {action}
     </div>
@@ -31,8 +31,8 @@ export function PageHeader({ title, subtitle, action }: { title: string; subtitl
   return (
     <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
       <div>
-        <h1 className="text-2xl font-bold tracking-tight text-slate-900">{title}</h1>
-        <p className="mt-1 text-sm text-slate-500">{subtitle}</p>
+        <h1 className="text-2xl font-bold tracking-tight text-slate-900 dark:text-slate-100">{title}</h1>
+        <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">{subtitle}</p>
       </div>
       {action}
     </div>
@@ -42,8 +42,8 @@ export function PageHeader({ title, subtitle, action }: { title: string; subtitl
 export function EmptyState({ title, hint }: { title: string; hint: string }) {
   return (
     <div className="flex flex-col items-center justify-center px-6 py-14 text-center">
-      <p className="text-sm font-medium text-slate-700">{title}</p>
-      <p className="mt-1 text-xs text-slate-500">{hint}</p>
+      <p className="text-sm font-medium text-slate-700 dark:text-slate-300">{title}</p>
+      <p className="mt-1 text-xs text-slate-500 dark:text-slate-500">{hint}</p>
     </div>
   );
 }
@@ -69,10 +69,10 @@ export function KpiCard({ label, value, delta, spark }: { label: string; value: 
   const positive = delta >= 0;
   return (
     <Card className="p-5">
-      <p className="text-xs font-medium uppercase tracking-wide text-slate-500">{label}</p>
+      <p className="text-xs font-medium uppercase tracking-wide text-slate-500 dark:text-slate-400">{label}</p>
       <div className="mt-2 flex items-end justify-between gap-2">
         <div>
-          <p className="text-2xl font-bold text-slate-900">{value}</p>
+          <p className="text-2xl font-bold text-slate-900 dark:text-slate-100">{value}</p>
           <p className={`mt-1 flex items-center gap-1 text-xs font-medium ${positive ? "text-emerald-600" : "text-rose-600"}`}>
             {positive ? <TrendingUp size={14} /> : <TrendingDown size={14} />}
             {Math.abs(delta).toFixed(1)}% vs last period
@@ -87,8 +87,8 @@ export function KpiCard({ label, value, delta, spark }: { label: string; value: 
 export function AccessDenied({ what }: { what: string }) {
   return (
     <Card className="mx-auto mt-16 max-w-md p-10 text-center">
-      <p className="text-lg font-semibold text-slate-900">Access denied</p>
-      <p className="mt-2 text-sm text-slate-500">
+      <p className="text-lg font-semibold text-slate-900 dark:text-slate-100">Access denied</p>
+      <p className="mt-2 text-sm text-slate-500 dark:text-slate-400">
         {what} requires administrator privileges. Sign in as an admin to view this section.
       </p>
     </Card>
