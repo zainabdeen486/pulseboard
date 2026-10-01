@@ -16,7 +16,7 @@ function RequireAuth({ children }: { children: ReactNode }) {
 export default function App() {
   return (
     <AuthProvider>
-      <BrowserRouter>
+      <BrowserRouter basename="/pulseboard">
         <Routes>
           <Route path="/login" element={<Login />} />
           <Route
